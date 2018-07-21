@@ -1,0 +1,12 @@
+Case Study 1: Batting.csv
+
+CREATE TABLE temp_cricket(col_value STRING);
+LOAD DATA INPATH '/user/Jig13895/Batting.csv' OVERWRITE INTO TABLE temp_cricket;
+
+CREATE TABLE batting(player_id STRING,year INT,runs INT);
+
+insert overwrite table batting SELECT regexp_extract(col_value,
+
+'^(?:([^,]*)\,?){1}',3) player_id,regexp_extract(col_value, '^(?:([^,]*)\,?){2}', 4) year,
+
+regexp_extract(col_value, '^(?:([^,]*)\,?){9}',7) run from temp_cricket;

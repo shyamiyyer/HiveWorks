@@ -1,0 +1,189 @@
+Hive Assignment 1: NYSE_stocks.csv
+create database NYSE_temp;
+
+use NYSE_temp;
+
+create table NYSE_table (
+exchange_name String,
+stock_symbol String,
+stock_date String,
+stock_price_open double,
+stock_price_high double, 
+stock_price_low double, 
+stock_price_close double, 
+stock_volume double, 
+stock_price_adj_close double) 
+row format delimited
+fields terminated by ',';
+
+LOAD DATA LOCAL INPATH '/home/Jig13895/hiveData/NYSE_stocks.csv' OVERWRITE INTO TABLE NYSE_table;
+
+Q1.Find the covariance between the stocks for each month that will help you decide which stocks to buy
+
+select a.STOCK_SYMBOL, 
+b.STOCK_SYMBOL,
+month(a.STOCK_DATE) ,
+(AVG(a.STOCK_PRICE_HIGH*b.STOCK_PRICE_HIGH)- (AVG(a.STOCK_PRICE_HIGH)*AVG(b.STOCK_PRICE_HIGH))) 
+from NYSE_table a 
+join NYSE_table b on (a.STOCK_DATE=b.STOCK_DATE) 
+where a.STOCK_SYMBOL<b.STOCK_SYMBOL group by a.STOCK_SYMBOL, b. STOCK_SYMBOL, month(a.STOCK_DATE);
+
+
+-------------------------------------------------------------------------------------
+Format details of BX-Books.csv “ISBN”|”Book-Title”|”Book-Author”|”Year-Of-Publication”|”Publisher”|”Image-URLS”|”Image-URL-M”|”Image-URL-“
+Format details of BX-Books-Ratings.csv “User_id”|”ISBN”|”Rating”
+Format details of BX-Userss.csv “User_id”|”State”,”City”,”Country”|”Area code”
+1. Create books_details table
+2. Load data into this table from file “BX-Books.csv” stored in HDFS
+3. Create books_ratings table
+4. Load data into this table from file “BX-Books-Ratings.csv” stored in HDFS
+5. Create user_details table
+6. Load data into this table from file “BX-Userss.csv” stored in HDFS
+7. Find out the number of books published each year. (Hint: Use BX-Boooks.csv)
+8. Find out in which year maximum number of books were published
+9. Write a query to join book_ratings and user_details tables on serial
+
+
+CREATE DATABASE books;
+
+use books;
+
+CREATE TABLE books_details(
+ISBN STRING, 
+title STRING,
+author STRING,
+yearOfPub STRING, 
+publisher STRING,
+img_urls STRING, 
+img_url_m STRING,
+img_url_1 STRING
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '|'
+LINES TERMINATED BY '\n'
+STORED AS TEXTFILE;
+
+LOAD DATA INPATH 'hdfs://nn.cdh2017.com:8020/user/Jig13895/hiveData/BX-Books.csv' OVERWRITE INTO TABLE books_details;
+
+SELECT COUNT(*) FROM books_details;
+
+CREATE TABLE books_ratings(
+userId INT,
+ISBN STRING,
+rating STRING 
+)
+ROW FORMAT DELIMITED
+FIELDs TERMINATED BY '|'
+LINES TERMINATED BY '\n'
+STORED AS TEXTFILE;
+
+LOAD DATA INPATH 'hdfs://nn.cdh2017.com:8020/user/Jig13895/hiveData/BX-Book-Ratings.csv' OVERWRITE INTO TABLE books_ratings;
+
+SELECT COUNT(*) FROM books_ratings;
+
+CREATE TABLE user_details(
+userId INT,
+state STRING,
+city STRING,
+country STRING,
+area_cd STRING
+)
+ROW FORMAT DELIMITED
+FIELDs TERMINATED BY '|'
+LINES TERMINATED BY '\n'
+STORED AS TEXTFILE;
+
+LOAD DATA INPATH 'hdfs://nn.cdh2017.com:8020/user/Jig13895/hiveData/BX-Users.csv' OVERWRITE INTO TABLE user_details;
+
+SELECT COUNT(*) FROM user_details;
+
+Q1. Find out the number of books published each year.
+
+SELECT yearOfPub,count(*) FROM books_details GROUP BY yearOfPub; 
+yearOfPub 
+(or)
+SELECT count(*) FROM books_details GROUP BY yearOfPub; 
+--raise clarification
+Q2. Find out in which year maximum number of books were published
+
+SELECT yearOfPub,count(*) num_of_books FROM books_details GROUP BY yearOfPub ORDER BY num_of_books DESC LIMIT 1;
+
+(or)
+
+SELECT yearOfPub FROM (
+SELECT yearOfPub,count(*) num_of_books FROM books_details GROUP BY yearOfPub ORDER BY num_of_books DESC LIMIT 1
+);
+--raise clarification
+
+Q3.Write a query to join book_ratings and user_details tables on serial number field (userId )
+to display name and city of all users who have purchased books of rating 5.
+
+SELECT a.*,b.city FROM books_ratings a
+JOIN user_details b ON (a.userId = b.userId)
+WHERE a.rating='"5"'; 
+--raise clarification
+
+
+SELECT * FROM books_ratings a
+where a.userId="276725";
+
+
+CREATE TABLE books_ratings_new1(
+userId STRING,
+ISBN STRING,
+rating STRING 
+)
+ROW FORMAT DELIMITED
+FIELDs TERMINATED BY '||'
+STORED AS TEXTFILE;
+
+LOAD DATA LOCAL INPATH '/home/Jig13895/hiveData/BX-Book-Ratings.csv' OVERWRITE INTO TABLE books_ratings_new1;
+---------------------------------------------------------------------------
+
+CREATE DATABASE yahoo_temp;
+
+use yahoo_temp;
+
+CREATE TABLE stocks_data (
+exchangeName STRING,
+stock_symbol STRING,
+date STRING,
+open DOUBLE,
+high DOUBLE,
+low DOUBLE,
+close DOUBLE,
+volume DOUBLE,
+adj_close DOUBLE)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+LINES TERMINATED BY '\n'
+STORED AS TEXTFILE;
+
+
+LOAD DATA INPATH 'hdfs://nn.cdh2017.com:8020/user/Jig13895/hiveData/yahoo_stock_AA_32_mini-1.csv' OVERWRITE INTO TABLE stocks_data;
+
+Q1.Write a HIVEQL to find 52 week high and low price and its respective date for each of the stock given in the data.
+a. Query to find Max stock price and date on which it happened
+SELECT b.stock_symbol, b.date
+FROM stocks_data b
+WHERE b.close=(SELECT MAX(a.close) FROM stocks_data a GROUP BY a.stock_symbol);  -->throws error
+
+SELECT b.date
+FROM stocks_data b
+WHERE close=(SELECT MAX(a.close) FROM stocks_data a GROUP BY a.stock_symbol);
+
+(or)
+
+select MAX(stock_price_close) from Stock_data group by stock_symbol;
+select stock_date from Stock_data where stock_price_close=?;
+
+b. Query to find Min stock price and date on which it happened
+
+SELECT stock_symbol, date
+FROM stocks_data 
+WHERE close=(SELECT MIN(a.close) FROM stocks_data a GROUP BY a.stock_symbol );
+
+(or)
+
+select MIN(stock_price_close) from Stock_data group by stock_symbol;
+select stock_date from Stock_data where stock_price_close=?;

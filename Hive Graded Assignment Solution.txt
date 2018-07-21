@@ -1,0 +1,99 @@
+
+Q1. Create an external table u_data for u.data in HDFS.
+CREATE EXTERNAL TABLE IF NOT EXISTS u_data(userId INT,itemId INT,rating INT,timestamp STRING)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '\t'
+LINES TERMINATED BY '\n'
+LOCATION  'hdfs://nn.cdh2017.com:8020/user/Jig13895/hiveGradedAssignment/InputData/u_data';
+
+Q2.See the field descriptions of u_data table
+
+describe u_data;
+describe extended u_data;
+describe formatted u_data;
+
+Q3. Show all the data in the newly created u_data table
+
+select * from u_data;
+
+Q4.Show the number of items reviewed by each user
+SELECT itemId,count(*) FROM u_data  GROUP BY itemId ORDER BY itemId ASC;
+
+
+Q5.show the number of users reviewed each item
+SELECT userId,count(*) FROM u_data  GROUP BY userId ORDER BY userId ASC;
+
+Q6.Create an external table u_user for u.user in HDFS .
+CREATE EXTERNAL TABLE IF NOT EXISTS u_user(userId INT,age INT,gender STRING,occupation STRING,zip STRING)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '|'
+LINES TERMINATED BY '\n'
+LOCATION  'hdfs://nn.cdh2017.com:8020/user/Jig13895/hiveGradedAssignment/InputData/u_user';
+
+Q7.See the field descriptions of u_user table
+describe u_user;
+describe extended u_user;
+describe formatted u_user;
+
+Q8.Show all the data in the newly created user table
+select * from u_user;
+
+Q9.Count the number of data in the u_user table
+select count(*) from u_user;
+
+Q10.count the number of users in the u_user table genderwise
+SELECT gender,count(*) FROM u_user GROUP BY gender;
+
+11. Join u_data table and u_user tables based on userid - Perform a reduce side join and map side join for the same and compare the time taken in both cases.
+
+Map side Join:
+SELECT /*+MAPJOIN(u_user) */ u_data.userId,u_user.gender
+FROM u_data 
+JOIN u_user on u_data.userId=u_user.userId
+limit 10;
+
+Output:
+
+Reduce Side Join:
+SELECT u_data.userId,u_user.gender
+FROM u_data 
+JOIN u_user on u_data.userId=u_user.userId
+limit 10;
+
+Output:
+
+12. Create a partitioned table u_user_partitioned, partitioned by occupation column
+CREATE EXTERNAL TABLE IF NOT EXISTS u_user_partitioned(userId INT,age INT,gender STRING,zip STRING)
+PARTITIONED BY (occupation STRING)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '|'
+LINES TERMINATED BY '\n';
+
+--enable dynamic partition
+set hive.exec.dynamic.partition.mode=nonstrict;
+
+--dynamic partition
+INSERT OVERWRITE TABLE u_user_partitioned
+PARTITION(occupation)
+SELECT userId,age,gender,zip,occupation
+FROM u_user;
+
+Note:The partition column should be at the end in the above select query.Else it would throw error.
+
+13. Find out the total number of male and total number of female only for the most common occupation – you can hard code the occupation/ use subqueries. 
+- Perform the query on both un-partitioned table and partitioned table. - Compare and report the performance differences.
+
+SELECT occupation FROM u_user GROUP BY occupation;
+ 
+SELECT gender,count(*) FROM u_user_partitioned where occupation="student" GROUP BY gender;
+SELECT gender,count(*) FROM u_user where occupation="student" GROUP BY gender;
+
+or
+
+select count(*) as total, sum( case when gender = 'M' then 1 else 0 end ) as male
+   , sum( case when gender = 'F' then 1 else 0 end ) as female
+   from u_user where occupation = "student";
+ 
+   select count(*) as total, sum( case when gender = 'M' then 1 else 0 end ) as male
+   , sum( case when gender = 'F' then 1 else 0 end ) as female
+   from u_user_partitioned where occupation = "student";
